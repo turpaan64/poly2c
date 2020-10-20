@@ -15,13 +15,16 @@
 #include "includes/data.h"
 #include "includes/file.h"
 #include "includes/types.h"
+#include "includes/textmagic.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     // TODO: copy the results to clipboard
     // TODO: name the xxxxVertexTable[] = {... based on input file
     //       by removing the word collision, if used + make the casing small
     // TODO: Start offset to get the collision for example from vanilla files
-    if (argc < 2) {
+    if (argc < 2)
+    {
         fprintf(stderr,
                 "Please provide at least one input file.\n"
                 "Exiting...\n");
@@ -34,38 +37,42 @@ int main(int argc, char** argv) {
     if (p)
     {
         found = strcmp(p, ".zobj") == 0;
-    } else {
-        fprintf(stderr, "This is not a zobj file.\n" "Exiting...\n");
+    }
+    else
+    {
+        fprintf(stderr, "This is not a zobj file.\n"
+                        "Exiting...\n");
         return 1;
     }
 
-    // FILE *output;
-    // if ((output=freopen("collision.h", "w", stdout)) == NULL ) {
-    //     fprintf(stderr,
-    //             "Cannot open file.\n"
-    //             "Exiting...\n");
-    //     getchar();
-    //     return 1;
-    // }
-
-
-    char *inputName;
+    // Handle the Name
+    char inputName[sizeof(argv[1])];
     char defaultArray[] = "s";
+    int index;
+    strcpy(inputName, extract_filename(argv[1]));
+    strcpy(inputName, extract_filenameWindows(inputName));
+    printf("/* %s */\n", argv[1]);
+    char wordColl[] = "collisio,";
+    char wordZobj[] = ".zobj";
 
-    // Third argument used for naming the stuff
-    if (argc >= 3) {
-        inputName = malloc(sizeof(argv[2]));
-        strcpy(inputName, argv[2]);
-    } else {
-        inputName = malloc(sizeof(defaultArray));
-        char defaultArray[] = "s";
-        strcpy(inputName, defaultArray);
+    index = search(inputName, wordColl);
+    if (index != -1) {
+        delete_word(inputName, wordColl, index);
+    }
+    index = search(inputName, wordZobj);
+    if (index != -1) {
+        delete_word(inputName, wordZobj, index);
     }
 
-        int zobjFileSize = 0;
+    char** arrayName = concat(defaultArray, inputName);
+
+
+    int zobjFileSize = 0;
     unsigned char* zobj   = makeFileBuffer(argv[1], 0, &zobjFileSize);
     z64_bgcheck_data_info_t bgData[1];
     memcpy(bgData, zobj, sizeof(z64_bgcheck_data_info_t));
+
+
 
     int vertexTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) ^ 0x05000000;
     int polyTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) ^ 0x05000000;
@@ -88,7 +95,7 @@ int main(int argc, char** argv) {
     int arraySize = bgData->vtx_num;
     z64_bgcheck_vertex_t vertexTable[arraySize];
     memcpy(vertexTable, zobj + vertexTableOffset, vertexTableSize);
-    printf("const z64_bgcheck_vertex_t %sVertexTable[] = {\n", inputName);
+    printf("const z64_bgcheck_vertex_t %sVertexTable[] = {\n", arrayName);
     if (arraySize > 0) {
         for (int32_t i = 0; i < arraySize; i++) {
             printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", vertexTable[i].x & 0xffff, vertexTable[i].y & 0xffff, vertexTable[i].z & 0xffff);
@@ -107,7 +114,7 @@ int main(int argc, char** argv) {
     arraySize = bgData->poly_num;
     z64_bgcheck_polygon_t polyTable[arraySize];
     memcpy(polyTable, zobj + polyTableOffset, polyTableSize);
-    printf("const z64_bgcheck_polygon_t %sPolyTable[] = {\n", inputName);
+    printf("const z64_bgcheck_polygon_t %sPolyTable[] = {\n", arrayName);
     if (arraySize > 0)
     {
         for (int32_t i = 0; i < arraySize; i++)
@@ -133,7 +140,7 @@ int main(int argc, char** argv) {
     arraySize = polyInfoTableSize / 8;
     z64_bgcheck_polygon_info_t polyInfoTable[arraySize];
     memcpy(polyInfoTable, zobj + polyInfoTableOffset, polyInfoTableSize);
-    printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", inputName);
+    printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", arrayName);
     if (arraySize > 0)
     {
         for (int32_t i = 0; i < arraySize; i++)
@@ -156,7 +163,7 @@ int main(int argc, char** argv) {
     arraySize = cameraDataTableSize / 8;
     z64_bgcheck_camera_data_t cameraDataTable[arraySize];
     memcpy(cameraDataTable, zobj + cameraDataTableOffset, cameraDataTableSize);
-    printf("const z64_bgcheck_camera_data_t %sCameraDataTable[] = {\n", inputName);
+    printf("const z64_bgcheck_camera_data_t %sCameraDataTable[] = {\n", arrayName);
     if (arraySize > 0)
     {
         for (int32_t i = 0; i < arraySize; i++)
@@ -179,7 +186,7 @@ int main(int argc, char** argv) {
     arraySize = waterInfoTableSize / 14;
     z64_bgcheck_water_info_t waterInfoTable[arraySize];
     memcpy(waterInfoTable, zobj + waterInfoTableOffset, waterInfoTableSize);
-    printf("const z64_bgcheck_water_info_t %sWaterInfoTable[] = {\n", inputName);
+    printf("const z64_bgcheck_water_info_t %sWaterInfoTable[] = {\n", arrayName);
     if (arraySize > 0)
     {
         for (int32_t i = 0; i < arraySize; i++)
@@ -195,7 +202,7 @@ int main(int argc, char** argv) {
 
     /* ////////////// */
 
-    printf("const z64_bgcheck_data_info_t %sPolyIdData = {\n", inputName);
+    printf("const z64_bgcheck_data_info_t %sPolyIdData = {\n", arrayName);
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_min[0] & 0xFFFF, bgData->vtx_min[1] & 0xFFFF, bgData->vtx_min[2] & 0xFFFF);
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_max[0] & 0xFFFF, bgData->vtx_max[1] & 0xFFFF, bgData->vtx_max[2] & 0xFFFF);
     printf("\t0x%04X,\n", bgData->vtx_num & 0xFFFF);
@@ -218,5 +225,8 @@ int main(int argc, char** argv) {
     printf(" * WaterInf table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)), waterInfoTableOffset);
     printf(" * File size\t\t 0x0500%04X\t\t  *\n", zobjFileSize & 0xFFFF);
     printf(" * ////////////////////////////////////////////// */\n");
+
+    getchar();
+
     return 0;
 }
