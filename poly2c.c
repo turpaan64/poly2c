@@ -206,13 +206,13 @@ int main(int argc, char **argv)
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_min[0] & 0xFFFF, bgData->vtx_min[1] & 0xFFFF, bgData->vtx_min[2] & 0xFFFF);
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_max[0] & 0xFFFF, bgData->vtx_max[1] & 0xFFFF, bgData->vtx_max[2] & 0xFFFF);
     printf("\t0x%04X,\n", bgData->vtx_num & 0xFFFF);
-    printf("\t&nameVertexTable,\n");
+    printf("\t&%sVertexTable,\n", arrayName);
     printf("\t0x%04X,\n", bgData->poly_num & 0xFFFF);
-    printf("\t&namePolyTable,\n");
-    printf("\t&namePolyInfoTable,\n");
-    printf("\t&nameCameraDataTable,\n");
+    printf("\t&%sPolyTable,\n", arrayName);
+    printf("\t&%sPolyInfoTable,\n", arrayName);
+    printf("\t&%sCameraDataTable,\n", arrayName);
     printf("\t0x%04X,\n", bgData->water_info_num & 0xFFFF);
-    printf("\t&nameWaterInfoTable,\n");
+    printf("\t&%sWaterInfoTable,\n", arrayName);
     printf("};\n");
     putchar('\n');
 
