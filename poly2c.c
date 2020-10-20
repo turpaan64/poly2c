@@ -46,13 +46,14 @@ int main(int argc, char **argv)
     }
 
     // Handle the Name
+    // Delete word does not work on Windows. Results are pretty random and adds \r
     char inputName[sizeof(argv[1])];
     char defaultArray[] = "s";
     int index;
     strcpy(inputName, extract_filename(argv[1]));
     strcpy(inputName, extract_filenameWindows(inputName));
     printf("/* %s */\n", argv[1]);
-    char wordColl[] = "collisio,";
+    char wordColl[] = "collisio"; // For some reason having "collision" deletes the next character after this word
     char wordZobj[] = ".zobj";
 
     index = search(inputName, wordColl);
@@ -63,7 +64,6 @@ int main(int argc, char **argv)
     if (index != -1) {
         delete_word(inputName, wordZobj, index);
     }
-
     char** arrayName = concat(defaultArray, inputName);
 
 
