@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     int index;
     strcpy(inputName, extract_filename(argv[1]));
     strcpy(inputName, extract_filenameWindows(inputName));
-    printf("/* %s */\n", argv[1]);
+    printf("\n\n/* %s */\n\n", argv[1]);
     char wordColl[] = "collisio"; // For some reason having "collision" deletes the next character after this word
     char wordZobj[] = ".zobj";
 
@@ -66,19 +66,18 @@ int main(int argc, char **argv)
     }
     char** arrayName = concat(defaultArray, inputName);
 
+    // int offset = argv[2]; // This breaks name for FloorSwitch
 
     int zobjFileSize = 0;
-    unsigned char* zobj   = makeFileBuffer(argv[1], 0, &zobjFileSize);
+    unsigned char* zobj = makeFileBuffer(argv[1], 0, &zobjFileSize);
     z64_bgcheck_data_info_t bgData[1];
     memcpy(bgData, zobj, sizeof(z64_bgcheck_data_info_t));
 
-
-
-    int vertexTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) ^ 0x05000000;
-    int polyTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) ^ 0x05000000;
-    int polyInfoTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) ^ 0x05000000;
-    int cameraDataTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) ^ 0x05000000;
-    int waterInfoTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) ^ 0x05000000;
+    int vertexTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0x00FFFFFF;
+    int polyTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0x00FFFFFF;
+    int polyInfoTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0x00FFFFFF;
+    int cameraDataTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0x00FFFFFF;
+    int waterInfoTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0x00FFFFFF;
 
     uint32_t vertexTableSize = 0x6 * bgData->vtx_num;
     uint32_t polyTableSize = 0x10 * bgData->poly_num;
