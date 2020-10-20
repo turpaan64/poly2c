@@ -66,12 +66,19 @@ int main(int argc, char **argv)
     }
     char** arrayName = concat(defaultArray, inputName);
 
-    // int offset = argv[2]; // This breaks name for FloorSwitch
+
+    // Argmument to load from certain offset (HEX)
+    int32_t offset = 0;
+    if (argv[2] != NULL) {
+        offset = strtol(argv[2], NULL, 16);
+    }
 
     int zobjFileSize = 0;
     unsigned char* zobj = makeFileBuffer(argv[1], 0, &zobjFileSize);
     z64_bgcheck_data_info_t bgData[1];
-    memcpy(bgData, zobj, sizeof(z64_bgcheck_data_info_t));
+    memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+
+    
 
     int vertexTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0x00FFFFFF;
     int polyTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0x00FFFFFF;
@@ -81,7 +88,7 @@ int main(int argc, char **argv)
 
     uint32_t vertexTableSize = 0x6 * bgData->vtx_num;
     uint32_t polyTableSize = 0x10 * bgData->poly_num;
-    uint32_t polyInfoTableSize = cameraDataTableOffset - polyInfoTableOffset;
+    int16_t polyInfoTableSize = 0; //Biggest value in poly_table info
     uint32_t cameraDataTableSize = 0;
     uint32_t waterInfoTableSize = 0;
 
@@ -95,13 +102,15 @@ int main(int argc, char **argv)
     z64_bgcheck_vertex_t vertexTable[arraySize];
     memcpy(vertexTable, zobj + vertexTableOffset, vertexTableSize);
     printf("const z64_bgcheck_vertex_t %sVertexTable[] = {\n", arrayName);
-    if (arraySize > 0) {
-        for (int32_t i = 0; i < arraySize; i++) {
+    if (arraySize > 0)
+    {
+        for (int32_t i = 0; i < arraySize; i++)
+        {
             printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", vertexTable[i].x & 0xffff, vertexTable[i].y & 0xffff, vertexTable[i].z & 0xffff);
         }
-    } else {
-        printf("\t/* EMPTY */\n");
-    }
+        } else {
+            printf("\t/* EMPTY */\n");
+        }
     printf("};\n\n");
 
     /* ////////////////////////////////////////////////////////////////////////////*
@@ -122,6 +131,10 @@ int main(int argc, char **argv)
             printf("\t\t{ 0x%04X, 0x%04X, 0x%04X },\n", polyTable[i].v[0] & 0xffff, polyTable[i].v[1] & 0xffff, polyTable[i].v[2] & 0xffff);
             printf("\t\t0x%04X, 0x%04X, 0x%04X, 0x%04X,\n", polyTable[i].a & 0xffff, polyTable[i].b & 0xffff, polyTable[i].c & 0xffff, polyTable[i].d & 0xffff);
             printf("\t},\n");
+
+            // Find the largest value
+            if (polyInfoTableSize < (polyTable[i].info & 0xffff) + 1)
+                polyInfoTableSize = (polyTable[i].info & 0xffff) + 1;
         }
     }
     else
@@ -136,9 +149,9 @@ int main(int argc, char **argv)
     *                                                                              *
     * //////////////////////////////////////////////////////////////////////////// */
 
-    arraySize = polyInfoTableSize / 8;
+    arraySize = polyInfoTableSize;
     z64_bgcheck_polygon_info_t polyInfoTable[arraySize];
-    memcpy(polyInfoTable, zobj + polyInfoTableOffset, polyInfoTableSize);
+    memcpy(polyInfoTable, zobj + polyInfoTableOffset, (polyInfoTableSize * 8));
     printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", arrayName);
     if (arraySize > 0)
     {
@@ -222,7 +235,7 @@ int main(int argc, char **argv)
     printf(" * PolyInf table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)), polyInfoTableOffset);
     printf(" * CamData table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)), cameraDataTableOffset);
     printf(" * WaterInf table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)), waterInfoTableOffset);
-    printf(" * File size\t\t 0x0500%04X\t\t  *\n", zobjFileSize & 0xFFFF);
+    printf(" * File size\t\t 0x0000%04X\t\t  *\n", zobjFileSize & 0xFFFF);
     printf(" * ////////////////////////////////////////////// */\n");
 
     getchar();
