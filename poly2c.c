@@ -71,11 +71,11 @@ int main(int argc, char **argv)
     memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
 
     uint32_t testLegit[] = {
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0xF0FF0000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0xF0FF0000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0xF0FF0000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0xF0FF0000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0xF0FF0000)
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0xF0F00000)
     };
     
     if (testLegit[0] == 0 && testLegit[1] == 0 && testLegit[2] == 0 && testLegit[3] == 0 && testLegit[4] == 0) {
