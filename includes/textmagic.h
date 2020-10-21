@@ -5,112 +5,116 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-char *concat(const char *s1, const char *s2)
+void print_usage(int c, char *ref)
 {
-    char *result = malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
-    // in real code you would check for errors in malloc here
-    strcpy(result, s1);
-    strcat(result, s2);
-    return result;
+    fprintf(stderr,
+            "--- POLY2C --- \n"
+            "\e[0;94m[*] "
+            "\e[mWritten by: rankaisija <github.com/turpaan64>\n"
+            "\e[0;94m[*] "
+            "\e[mAdditional contributions by: CrookedPoe <nickjs.site>\n-- -- -- -- --\n");
+
+    switch (c)
+    {
+    case 0: /* There is no input file provided. */
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mPlease provide an input file.\n");
+        break;
+    case 1: /* The provided file is not a valid .zobj. */
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[0;91m%s \e[mis not a valid .zobj file.\n",
+                ref);
+        break;
+    case 2: /* Bad Offset */
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mBad offset.\n");
+        break;
+    case 3: /* Bad Offset */
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mWe're no longer inside the file you provided.\n");
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mAre you sure about that offset son?\n");
+        break;
+    case 4: /* Bad Offset */
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mUnfortunately couldn't find the offset.\n");
+        break;
+    }
+
+    fprintf(stderr, "\e[0;94m[*] "
+                    "\e[mExiting...\n");
 }
 
-char *extract_filename(char *str)
+int check_extension(char *in, char *ext)
 {
-    int ch = '//';
-    size_t len;
-    char *pdest;
-    char *inpfile = NULL;
+    int idx = 0; /* Index of `.` character. */
+    char *check; /* String to test against. */
 
-    // Search backwards for last backslash in filepath
-    pdest = strrchr(str, ch);
-
-    // if backslash not found in filepath
-    if (pdest == NULL)
+    /* Search backwards for the most recent occurence of `.` */
+    for (int i = strlen(in); i > 0; i--)
     {
-        pdest = str; // The whole name is a file in current path?
-    }
-    else
-    {
-        pdest++; // Skip the backslash itself.
-    }
-
-    // extract filename from file path
-    len = strlen(pdest);
-    inpfile = malloc(len + 1);        // Make space for the zero.
-    strncpy(inpfile, pdest, len + 1); // Copy including zero.
-    return inpfile;
-}
-
-char *extract_filenameWindows(char *str)
-{
-    int ch = '\\';
-    size_t len;
-    char *pdest;
-    char *inpfile = NULL;
-
-    // Search backwards for last backslash in filepath
-    pdest = strrchr(str, ch);
-
-    // if backslash not found in filepath
-    if (pdest == NULL)
-    {
-        pdest = str; // The whole name is a file in current path?
-    }
-    else
-    {
-        pdest++; // Skip the backslash itself.
-    }
-
-    // extract filename from file path
-    len = strlen(pdest);
-    inpfile = malloc(len + 1);        // Make space for the zero.
-    strncpy(inpfile, pdest, len + 1); // Copy including zero.
-    return inpfile;
-}
-/* Function returns the index of str where word is found */
-int search(char str[], char word[])
-{
-    int l, i, j;
-
-    /* finding length of word */
-    for (l = 0; word[l] != '\0'; l++)
-        ;
-
-    for (i = 0, j = 0; str[i] != '\0' && word[j] != '\0'; i++)
-    {
-        if (str[i] == word[j])
+        if (in[i] == '.')
         {
-            j++;
+            idx = i;
+            break;
         }
+    }
+
+    if (idx) /* If idx != 0, check extension. */
+    {
+        check = calloc(strlen(in) + 1, 1);
+        memcpy(check, (in + idx), idx);
+
+        if (!strcmp(ext, check)) /* If ext == check, return index of position. (true == non-zero) */
+            return (strlen(in) - idx);
         else
-        {
-            j = 0;
-        }
-    }
-
-    if (j == l)
-    {
-        /* substring found */
-        return (i - j);
+            return 0;
     }
     else
-    {
-        return -1;
-    }
+        return 0;
 }
 
-int delete_word(char str[], char word[], int index)
+char *get_filename(char *in)
 {
-    int i, l;
+    int head = 0;
+    int tail = 0;
+    char *new;
 
-    /* finding length of word */
-    for (l = 0; word[l] != '\0'; l++)
-        ;
-
-    for (i = index; str[i] != '\0'; i++)
+    //fprintf(stderr, "in = %s\n", in);
+    /* Search backwards for the most recent occurence of `.` */
+    for (int i = strlen(in); i > 0; i--)
     {
-        str[i] = str[i + l + 1];
+        if (in[i] == '.')
+        {
+            tail = i;
+            break;
+        }
     }
+    //fprintf(stderr, "tail = %d\n", tail);
+
+    /* Search backwards for the most recent occurence of `/` or `\` */
+    for (int i = strlen(in); i > 0; i--)
+    {
+        if (in[i] == '/' || !strcmp(in + i, "\\"))
+        {
+            head = i + 1;
+            break;
+        }
+    }
+    //fprintf(stderr, "head = %d\n", head);
+
+    /* Allocate space for new string, and grab characters between head and tail. */
+    new = malloc(sizeof(char) * strlen(in));
+    for (int i = head; i < (strlen(in) - (strlen(in) - tail)); i++)
+    {
+        if (in[i] == '.')
+            new[i - head] = '_';
+        else
+            new[i - head] = in[i];
+        //fprintf(stderr, "new[%d] = %c\n", (i - head), in[i]);
+    }
+
+    return new;
 }
 
 #endif
