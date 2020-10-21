@@ -17,8 +17,18 @@
 #include "includes/types.h"
 #include "includes/textmagic.h"
 
+typedef struct
+{
+    int32_t flagVtxTable;
+    int32_t flagPolyTable;
+    int32_t flagPolyInfo;
+    int32_t flagCameraData;
+    int32_t flagWaterInfo;
+} configure;
+
 int main(int argc, char **argv)
 {
+    configure *thisCnf = malloc(sizeof(configure));
     // TODO: copy the results to clipboard
     // TODO: name the xxxxVertexTable[] = {... based on input file
     //       by removing the word collision, if used + make the casing small
@@ -57,28 +67,28 @@ int main(int argc, char **argv)
     char wordZobj[] = ".zobj";
 
     index = search(inputName, wordColl);
-    if (index != -1) {
+    if (index != -1)
+    {
         delete_word(inputName, wordColl, index);
     }
     index = search(inputName, wordZobj);
-    if (index != -1) {
+    if (index != -1)
+    {
         delete_word(inputName, wordZobj, index);
     }
-    char** arrayName = concat(defaultArray, inputName);
-
+    char **arrayName = concat(defaultArray, inputName);
 
     // Argmument to load from certain offset (HEX)
     int32_t offset = 0;
-    if (argv[2] != NULL) {
+    if (argv[2] != NULL)
+    {
         offset = strtol(argv[2], NULL, 16);
     }
 
     int zobjFileSize = 0;
-    unsigned char* zobj = makeFileBuffer(argv[1], 0, &zobjFileSize);
+    unsigned char *zobj = makeFileBuffer(argv[1], 0, &zobjFileSize);
     z64_bgcheck_data_info_t bgData[1];
     memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
-
-    
 
     int vertexTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0x00FFFFFF;
     int polyTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0x00FFFFFF;
@@ -102,15 +112,20 @@ int main(int argc, char **argv)
     z64_bgcheck_vertex_t vertexTable[arraySize];
     memcpy(vertexTable, zobj + vertexTableOffset, vertexTableSize);
     printf("const z64_bgcheck_vertex_t %sVertexTable[] = {\n", arrayName);
+    thisCnf->flagVtxTable = arraySize;
+
     if (arraySize > 0)
     {
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", vertexTable[i].x & 0xffff, vertexTable[i].y & 0xffff, vertexTable[i].z & 0xffff);
         }
-        } else {
-            printf("\t/* EMPTY */\n");
-        }
+    }
+    else
+    {
+
+        printf("\t/* EMPTY */\n");
+    }
     printf("};\n\n");
 
     /* ////////////////////////////////////////////////////////////////////////////*
@@ -122,9 +137,12 @@ int main(int argc, char **argv)
     arraySize = bgData->poly_num;
     z64_bgcheck_polygon_t polyTable[arraySize];
     memcpy(polyTable, zobj + polyTableOffset, polyTableSize);
-    printf("const z64_bgcheck_polygon_t %sPolyTable[] = {\n", arrayName);
+
+    thisCnf->flagPolyTable = arraySize;
+
     if (arraySize > 0)
     {
+        printf("const z64_bgcheck_polygon_t %sPolyTable[] = {\n", arrayName);
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t{\n\t\t0x%04X,\n", polyTable[i].info & 0xffff);
@@ -136,12 +154,8 @@ int main(int argc, char **argv)
             if (polyInfoTableSize < (polyTable[i].info & 0xffff) + 1)
                 polyInfoTableSize = (polyTable[i].info & 0xffff) + 1;
         }
+        printf("};\n\n");
     }
-    else
-    {
-        printf("\t/* EMPTY */\n");
-    }
-    printf("};\n\n");
 
     /* ////////////////////////////////////////////////////////////////////////////*
     *                                                                              *
@@ -152,19 +166,17 @@ int main(int argc, char **argv)
     arraySize = polyInfoTableSize;
     z64_bgcheck_polygon_info_t polyInfoTable[arraySize];
     memcpy(polyInfoTable, zobj + polyInfoTableOffset, (polyInfoTableSize * 8));
-    printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", arrayName);
+    thisCnf->flagPolyInfo = arraySize;
+
     if (arraySize > 0)
     {
+        printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", arrayName);
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t{ 0x%08X, 0x%08X },\n", SWAP_LE_BE(SWAP_V64_BE(polyInfoTable[i].info[0])) & 0xFFFFFFFF, SWAP_LE_BE(SWAP_V64_BE(polyInfoTable[i].info[1]))) & 0xFFFFFFFF;
         }
+        printf("};\n\n");
     }
-    else
-    {
-        printf("\t/* EMPTY */\n");
-    }
-    printf("};\n\n");
 
     /* ////////////////////////////////////////////////////////////////////////////*
     *                                                                              *
@@ -175,19 +187,18 @@ int main(int argc, char **argv)
     arraySize = cameraDataTableSize / 8;
     z64_bgcheck_camera_data_t cameraDataTable[arraySize];
     memcpy(cameraDataTable, zobj + cameraDataTableOffset, cameraDataTableSize);
-    printf("const z64_bgcheck_camera_data_t %sCameraDataTable[] = {\n", arrayName);
+    thisCnf->flagCameraData = arraySize;
+
     if (arraySize > 0)
     {
+        printf("const z64_bgcheck_camera_data_t %sCameraDataTable[] = {\n", arrayName);
+
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t/* TODO */,\n");
         }
+        printf("};\n\n");
     }
-    else
-    {
-        printf("\t/* EMPTY */\n");
-    }
-    printf("};\n\n");
 
     /* ////////////////////////////////////////////////////////////////////////////*
     *                                                                              *
@@ -195,22 +206,23 @@ int main(int argc, char **argv)
     *                                                                              *
     * //////////////////////////////////////////////////////////////////////////// */
 
-    arraySize = waterInfoTableSize / 14;
+    arraySize = bgData->water_info_num;
     z64_bgcheck_water_info_t waterInfoTable[arraySize];
     memcpy(waterInfoTable, zobj + waterInfoTableOffset, waterInfoTableSize);
-    printf("const z64_bgcheck_water_info_t %sWaterInfoTable[] = {\n", arrayName);
+    thisCnf->flagWaterInfo = arraySize;
+
     if (arraySize > 0)
     {
+        printf("const z64_bgcheck_water_info_t %sWaterInfoTable[] = {\n", arrayName);
         for (int32_t i = 0; i < arraySize; i++)
         {
-            printf("\t/* TODO */\n");
+            printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", waterInfoTable[i].min_pos.x & 0xFFFF, waterInfoTable[i].min_pos.y & 0xFFFF, waterInfoTable[i].min_pos.z & 0xFFFF);
+            printf("\t0x%04X,\n", waterInfoTable[i].size_x & 0xFFFF);
+            printf("\t0x%04X,\n", waterInfoTable[i].size_y & 0xFFFF);
+            printf("\t0x%04X,\n", SWAP_LE_BE(SWAP_V64_BE(waterInfoTable[i].info)) & 0xFFFFFFFF);
         }
+        printf("};\n\n");
     }
-    else
-    {
-        printf("\t/* EMPTY */\n");
-    }
-    printf("};\n\n");
 
     /* ////////////// */
 
@@ -218,13 +230,56 @@ int main(int argc, char **argv)
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_min[0] & 0xFFFF, bgData->vtx_min[1] & 0xFFFF, bgData->vtx_min[2] & 0xFFFF);
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_max[0] & 0xFFFF, bgData->vtx_max[1] & 0xFFFF, bgData->vtx_max[2] & 0xFFFF);
     printf("\t0x%04X,\n", bgData->vtx_num & 0xFFFF);
-    printf("\t&%sVertexTable,\n", arrayName);
+
+    if (thisCnf->flagVtxTable)
+    {
+        printf("\t&%sVertexTable,\n", arrayName);
+    }
+    else
+    {
+        printf("\tNULL,\n");
+    }
+
     printf("\t0x%04X,\n", bgData->poly_num & 0xFFFF);
-    printf("\t&%sPolyTable,\n", arrayName);
-    printf("\t&%sPolyInfoTable,\n", arrayName);
-    printf("\t&%sCameraDataTable,\n", arrayName);
+
+    if (thisCnf->flagPolyTable)
+    {
+        printf("\t&%sPolyTable,\n", arrayName);
+    }
+    else
+    {
+        printf("\tNULL,\n");
+    }
+
+    if (thisCnf->flagPolyInfo)
+    {
+        printf("\t&%sPolyInfoTable,\n", arrayName);
+    }
+    else
+    {
+        printf("\tNULL,\n");
+    }
+
+    if (thisCnf->flagCameraData)
+    {
+        printf("\t&%sCameraDataTable,\n", arrayName);
+    }
+    else
+    {
+        printf("\tNULL,\n");
+    }
+
     printf("\t0x%04X,\n", bgData->water_info_num & 0xFFFF);
-    printf("\t&%sWaterInfoTable,\n", arrayName);
+
+    if (thisCnf->flagWaterInfo)
+    {
+        printf("\t&%sWaterInfoTable,\n", arrayName);
+    }
+    else
+    {
+        printf("\tNULL,\n");
+    }
+
     printf("};\n");
     putchar('\n');
 
