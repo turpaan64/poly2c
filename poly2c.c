@@ -80,18 +80,13 @@ int main(int argc, char **argv)
     
     if (testLegit[0] == 0 && testLegit[1] == 0 && testLegit[2] == 0 && testLegit[3] == 0 && testLegit[4] == 0) {
     } else {
-        // print_usage(2, argv[1]);
-        // return 1;
-
         int stored = offset;
-        int res;
+        int res = 0;
         int segmentTest;
 
-        fprintf(stderr, "\e[0;94m[*] "
-                        "\e[mFinding offset for you, you lazy bastard.\n");
-        printf("0x%08X", 0);
+        print_usage(4, argv[1]);
 
-        for (int i = 0; (i * 4) < zobjFileSize; i++)
+        for (int i = 0; (i * 4) < zobjFileSize - stored; i++)
         {
             if (i == i)
             {
@@ -115,26 +110,41 @@ int main(int argc, char **argv)
                     }
                 }
 
-                res = 0;
-
                 if (segmentTest && bgData->pad == 0 && bgData->pad2 == 0 && testLegit2[0] == 0 && testLegit2[1] == 0 && testLegit2[2] == 0 && testLegit2[3] == 0 && testLegit2[4] == 0)
                 {
-                    offset = stored + (i * 4);
                     fprintf(stderr, "\e[0;94m[*] "
-                                    "\e[mIt's your lucky day! Offset found at 0x%08X\n\n\n",
-                            offset);
-                    res = 1;
-                    break;
+                                    "\e[mFound at \e[0;91m0x%08X\e[m\n",
+                            stored + (i * 4));
+                    res += 1;
+                    offset += sizeof(z64_bgcheck_polygon_info_t);
+
+                    //TODO: argument to stop on first collision and output that?
+                    // break;
                 }
                 
             }
         }
 
-        if (!res) {
-            print_usage(4, argv[1]);
+        if (res == 0) {
+            fprintf(stderr, "\e[0;94m[*] "
+                            "\e[mUnfortunately couldn't find any collisions in the file.\n");
+            fprintf(stderr, "\e[0;94m[*] "
+                            "\e[mExiting...\n");
             return 1;
         } else {
-            memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+            // memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+            if (res == 1) {
+                fprintf(stderr, "\e[0;94m[*] "
+                            "\e[mFound %d collision.\n", res);
+            } else {
+                fprintf(stderr, "\e[0;94m[*] "
+                                "\e[mFound %d collisions.\n",
+                        res);
+            }
+            
+            fprintf(stderr, "\e[0;94m[*] "
+                            "\e[mExiting...\n");
+            return 1;
         }
     }
 
