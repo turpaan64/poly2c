@@ -33,62 +33,110 @@ int main(int argc, char **argv)
     // TODO: name the xxxxVertexTable[] = {... based on input file
     //       by removing the word collision, if used + make the casing small
     // TODO: Start offset to get the collision for example from vanilla files
+    static char *filename = 0;
+    static char *extension = ".zobj";
+    static char *output_ext = ".h";
+
     if (argc < 2)
     {
-        fprintf(stderr,
-                "Please provide at least one input file.\n"
-                "Exiting...\n");
-        // getchar();
+        print_usage(0, argv[0]);
         return 1;
     }
 
-    int found;
-    char *p = strrchr(argv[1], '.');
-    if (p)
+    if (check_extension(argv[1], ".zobj"))
     {
-        found = strcmp(p, ".zobj") == 0;
+        filename = calloc(strlen(argv[1]), 1);
+        filename = get_filename(argv[1]);
+        //fprintf(stderr, "%s\n", filename);
     }
-    else
-    {
-        fprintf(stderr, "This is not a zobj file.\n"
-                        "Exiting...\n");
+    else {
+        print_usage(1, argv[1]);
         return 1;
     }
-
-    // Handle the Name
-    // Delete word does not work on Windows. Results are pretty random and adds \r
-    char inputName[sizeof(argv[1])];
-    char defaultArray[] = "s";
-    int index;
-    strcpy(inputName, extract_filename(argv[1]));
-    strcpy(inputName, extract_filenameWindows(inputName));
-    printf("\n\n/* %s */\n\n", argv[1]);
-    char wordColl[] = "collisio"; // For some reason having "collision" deletes the next character after this word
-    char wordZobj[] = ".zobj";
-
-    index = search(inputName, wordColl);
-    if (index != -1)
-    {
-        delete_word(inputName, wordColl, index);
-    }
-    index = search(inputName, wordZobj);
-    if (index != -1)
-    {
-        delete_word(inputName, wordZobj, index);
-    }
-    char **arrayName = concat(defaultArray, inputName);
-
-    // Argmument to load from certain offset (HEX)
-    int32_t offset = 0;
+        
+    int offset = 0;
     if (argv[2] != NULL)
     {
-        offset = strtol(argv[2], NULL, 16);
+        offset = strtol(argv[2], NULL, 16); // Load 2nd argument as a hex
     }
 
     int zobjFileSize = 0;
     unsigned char *zobj = makeFileBuffer(argv[1], 0, &zobjFileSize);
+    if (offset > zobjFileSize - sizeof(z64_bgcheck_data_info_t))
+    {
+        print_usage(3, argv[1]);
+        return 1;
+    }
     z64_bgcheck_data_info_t bgData[1];
     memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+
+    uint32_t testLegit[] = {
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0xF0FF0000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0xF0FF0000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0xF0FF0000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0xF0FF0000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0xF0FF0000)
+    };
+    
+    if (testLegit[0] == 0 && testLegit[1] == 0 && testLegit[2] == 0 && testLegit[3] == 0 && testLegit[4] == 0) {
+    } else {
+        // print_usage(2, argv[1]);
+        // return 1;
+
+        int stored = offset;
+        int res;
+        int segmentTest;
+
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mFinding offset for you, you lazy bastard.\n");
+        printf("0x%08X", 0);
+
+        for (int i = 0; (i * 4) < zobjFileSize; i++)
+        {
+            if (i == i)
+            {
+                memcpy(bgData, zobj + stored + (i * 4), sizeof(z64_bgcheck_data_info_t));
+
+                uint32_t testLegit2[] = {
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0xFFF00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0xFFF00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0xFFF00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0xF0F00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0xF0F00000)
+                };
+
+                segmentTest = 0;
+                if (testLegit2[0] != 0)
+                {
+                    if (testLegit2[0] == testLegit2[1] && testLegit2[1] == testLegit2[2])
+                    {
+                        testLegit2[0] = testLegit2[1] = testLegit2[2] = 0;
+                        segmentTest = 1;
+                    }
+                }
+
+                res = 0;
+
+                if (segmentTest && bgData->pad == 0 && bgData->pad2 == 0 && testLegit2[0] == 0 && testLegit2[1] == 0 && testLegit2[2] == 0 && testLegit2[3] == 0 && testLegit2[4] == 0)
+                {
+                    offset = stored + (i * 4);
+                    fprintf(stderr, "\e[0;94m[*] "
+                                    "\e[mIt's your lucky day! Offset found at 0x%08X\n\n\n",
+                            offset);
+                    res = 1;
+                    break;
+                }
+                
+            }
+        }
+
+        if (!res) {
+            print_usage(4, argv[1]);
+            return 1;
+        } else {
+            memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+        }
+    }
 
     int vertexTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0x00FFFFFF;
     int polyTableOffset = SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0x00FFFFFF;
@@ -111,7 +159,7 @@ int main(int argc, char **argv)
     int arraySize = bgData->vtx_num;
     z64_bgcheck_vertex_t vertexTable[arraySize];
     memcpy(vertexTable, zobj + vertexTableOffset, vertexTableSize);
-    printf("const z64_bgcheck_vertex_t %sVertexTable[] = {\n", arrayName);
+    printf("\rconst z64_bgcheck_vertex_t %sVertexTable[] = {\n", filename);
     thisCnf->flagVtxTable = arraySize;
 
     if (arraySize > 0)
@@ -142,7 +190,7 @@ int main(int argc, char **argv)
 
     if (arraySize > 0)
     {
-        printf("const z64_bgcheck_polygon_t %sPolyTable[] = {\n", arrayName);
+        printf("const \e[mz64_bgcheck_polygon_t %sPolyTable[] = {\n", filename);
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t{\n\t\t0x%04X,\n", polyTable[i].info & 0xffff);
@@ -170,7 +218,7 @@ int main(int argc, char **argv)
 
     if (arraySize > 0)
     {
-        printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", arrayName);
+        printf("const z64_bgcheck_polygon_info_t %sPolyInfoTable[] = {\n", filename);
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t{ 0x%08X, 0x%08X },\n", SWAP_LE_BE(SWAP_V64_BE(polyInfoTable[i].info[0])) & 0xFFFFFFFF, SWAP_LE_BE(SWAP_V64_BE(polyInfoTable[i].info[1]))) & 0xFFFFFFFF;
@@ -191,7 +239,7 @@ int main(int argc, char **argv)
 
     if (arraySize > 0)
     {
-        printf("const z64_bgcheck_camera_data_t %sCameraDataTable[] = {\n", arrayName);
+        printf("const z64_bgcheck_camera_data_t %sCameraDataTable[] = {\n", filename);
 
         for (int32_t i = 0; i < arraySize; i++)
         {
@@ -213,7 +261,7 @@ int main(int argc, char **argv)
 
     if (arraySize > 0)
     {
-        printf("const z64_bgcheck_water_info_t %sWaterInfoTable[] = {\n", arrayName);
+        printf("const z64_bgcheck_water_info_t %sWaterInfoTable[] = {\n", filename);
         for (int32_t i = 0; i < arraySize; i++)
         {
             printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", waterInfoTable[i].min_pos.x & 0xFFFF, waterInfoTable[i].min_pos.y & 0xFFFF, waterInfoTable[i].min_pos.z & 0xFFFF);
@@ -226,74 +274,72 @@ int main(int argc, char **argv)
 
     /* ////////////// */
 
-    printf("const z64_bgcheck_data_info_t %sPolyIdData = {\n", arrayName);
+    printf("const z64_bgcheck_data_info_t %sPolyIdData = {\n", filename);
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_min[0] & 0xFFFF, bgData->vtx_min[1] & 0xFFFF, bgData->vtx_min[2] & 0xFFFF);
     printf("\t{ 0x%04X, 0x%04X, 0x%04X },\n", bgData->vtx_max[0] & 0xFFFF, bgData->vtx_max[1] & 0xFFFF, bgData->vtx_max[2] & 0xFFFF);
     printf("\t0x%04X,\n", bgData->vtx_num & 0xFFFF);
 
     if (thisCnf->flagVtxTable)
     {
-        printf("\t&%sVertexTable,\n", arrayName);
+        printf("\t&%sVertexTable,\n", filename);
     }
     else
     {
-        printf("\tNULL,\n");
+        printf("\t\e[31mNULL\e[m,\n");
     }
 
     printf("\t0x%04X,\n", bgData->poly_num & 0xFFFF);
 
     if (thisCnf->flagPolyTable)
     {
-        printf("\t&%sPolyTable,\n", arrayName);
+        printf("\t&%sPolyTable,\n", filename);
     }
     else
     {
-        printf("\tNULL,\n");
+        printf("\t\e[31mNULL\e[m,\n");
     }
 
     if (thisCnf->flagPolyInfo)
     {
-        printf("\t&%sPolyInfoTable,\n", arrayName);
+        printf("\t&%sPolyInfoTable,\n", filename);
     }
     else
     {
-        printf("\tNULL,\n");
+        printf("\t\e[31mNULL\e[m,\n");
     }
 
     if (thisCnf->flagCameraData)
     {
-        printf("\t&%sCameraDataTable,\n", arrayName);
+        printf("\t&%sCameraDataTable,\n", filename);
     }
     else
     {
-        printf("\tNULL,\n");
+        printf("\t\e[31mNULL\e[m,\n");
     }
 
     printf("\t0x%04X,\n", bgData->water_info_num & 0xFFFF);
 
     if (thisCnf->flagWaterInfo)
     {
-        printf("\t&%sWaterInfoTable,\n", arrayName);
+        printf("\t&%sWaterInfoTable,\n", filename);
     }
     else
     {
-        printf("\tNULL,\n");
+        printf("\t\e[31mNULL\e[m,\n");
     }
 
     printf("};\n");
     putchar('\n');
 
-    printf("/* ////////////////////////////////////////////// *\n");
-    printf(" * ADDRESS\t\t ZOBJ:\t\t\t  *\n");
-    printf(" * Vertex table\t\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)), vertexTableOffset);
-    printf(" * Poly table\t\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)), polyTableOffset);
-    printf(" * PolyInf table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)), polyInfoTableOffset);
-    printf(" * CamData table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)), cameraDataTableOffset);
-    printf(" * WaterInf table\t 0x%08X\t\t  *\n", SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)), waterInfoTableOffset);
-    printf(" * File size\t\t 0x0000%04X\t\t  *\n", zobjFileSize & 0xFFFF);
-    printf(" * ////////////////////////////////////////////// */\n");
-
-    getchar();
+    printf("\e[0;91m/**\n");
+    printf(" * TYPE:\t\t OFFSET:\n");
+    printf(" * Vertex table\t\t 0x%08X\n", SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)), vertexTableOffset);
+    printf(" * Poly table\t\t 0x%08X\n", SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)), polyTableOffset);
+    printf(" * PolyInf table\t 0x%08X\n", SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)), polyInfoTableOffset);
+    printf(" * CamData table\t 0x%08X\n", SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)), cameraDataTableOffset);
+    printf(" * WaterInf table\t 0x%08X\n", SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)), waterInfoTableOffset);
+    printf(" * File size\t\t 0x0000%04X\n", zobjFileSize & 0xFFFF);
+    printf(" */\n");
 
     return 0;
 }
