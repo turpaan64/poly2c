@@ -29,20 +29,23 @@ void print_usage(int c, char *ref)
         fprintf(stderr, "\e[0;94m[*] "
                         "\e[mBad offset.\n");
         break;
-    case 3: /* Bad Offset */
+    case 3:
         fprintf(stderr, "\e[0;94m[*] "
                         "\e[mWe're no longer inside the file you provided.\n");
         fprintf(stderr, "\e[0;94m[*] "
                         "\e[mAre you sure about that offset son?\n");
         break;
-    case 4: /* Bad Offset */
+    case 4:
         fprintf(stderr, "\e[0;94m[*] "
-                        "\e[mUnfortunately couldn't find the offset.\n");
+                        "\e[mDidn't find valid collision at given offset.\n");
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mFinding next collision(s) in the file:\n");
         break;
     }
 
-    fprintf(stderr, "\e[0;94m[*] "
-                    "\e[mExiting...\n");
+    if (c != 4)
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mExiting...\n");
 }
 
 int check_extension(char *in, char *ext)
