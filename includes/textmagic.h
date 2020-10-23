@@ -5,15 +5,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-void print_usage(int c, char *ref)
-{
-    fprintf(stderr,
-            "--- POLY2C --- \n"
-            "\e[0;94m[*] "
-            "\e[mWritten by: rankaisija <github.com/turpaan64>\n"
-            "\e[0;94m[*] "
-            "\e[mAdditional contributions by: CrookedPoe <nickjs.site>\n-- -- -- -- --\n");
+#include "types.h"
 
+void print_usage(int c, char *ref, configure *conf, int exit)
+{
+    if (!conf->printUsageFlag){
+        conf->printUsageFlag = 1;
+        fprintf(stderr,
+                "--- POLY2C --- \n"
+                "\e[0;94m[*] "
+                "\e[mWritten by: rankaisija <github.com/turpaan64>\n"
+                "\e[0;94m[*] "
+                "\e[mAdditional contributions by: CrookedPoe <nickjs.site>\n-- -- -- -- --\n");
+    }
     switch (c)
     {
     case 0: /* There is no input file provided. */
@@ -31,9 +35,9 @@ void print_usage(int c, char *ref)
         break;
     case 3:
         fprintf(stderr, "\e[0;94m[*] "
-                        "\e[mWe're no longer inside the file you provided.\n");
+                        "\e[mThe offset goes beyond the filesize.\n");
         fprintf(stderr, "\e[0;94m[*] "
-                        "\e[mAre you sure about that offset son?\n");
+                        "\e[mLoad file again with smaller offset value.\n");
         break;
     case 4:
         fprintf(stderr, "\e[0;94m[*] "
@@ -41,9 +45,13 @@ void print_usage(int c, char *ref)
         fprintf(stderr, "\e[0;94m[*] "
                         "\e[mFinding next collision(s) in the file:\n");
         break;
+    case 5:
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mFile has been written succesfully!\n");
+        break;
     }
 
-    if (c != 4)
+    if (exit)
         fprintf(stderr, "\e[0;94m[*] "
                         "\e[mExiting...\n");
 }
@@ -118,6 +126,15 @@ char *get_filename(char *in)
     }
 
     return new;
+}
+
+void writeNull(configure* conf)
+{
+    if (!conf->confSaveFile) {
+        fprintf(stdout, "\t\e[31mNULL\e[m,\n");
+    } else {
+        fprintf(stdout, "\tNULL,\n");
+    }
 }
 
 #endif

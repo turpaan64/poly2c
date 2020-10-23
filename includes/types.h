@@ -3,6 +3,19 @@
 
 typedef struct
 {
+    int32_t flagVtxTable;
+    int32_t flagPolyTable;
+    int32_t flagPolyInfo;
+    int32_t flagCameraData;
+    int32_t flagWaterInfo;
+    int8_t printUsageFlag;
+    int8_t exitFlag;
+    int8_t confFirst;
+    int8_t confSaveFile;
+} configure;
+
+typedef struct
+{
     int16_t x;
     int16_t y;
     int16_t z;
