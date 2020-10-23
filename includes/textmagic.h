@@ -49,6 +49,25 @@ void print_usage(int c, char *ref, configure *conf, int exit)
         fprintf(stderr, "\e[0;94m[*] "
                         "\e[mFile has been written succesfully!\n");
         break;
+    case 6:
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mUnfortunately couldn't find any collisions in the file.\n");
+        break;
+    case 7:
+        fprintf(stderr, "\e[0;94m[*] "
+                        "\e[mFound collision.\n");
+        break;
+    case 8:
+        fprintf(stderr,
+                "\e[0;94m[*] "
+                "\e[m-f\t\tFirst\n"
+                "\e[0;94m[*] "
+                "\e[m-h\t\tHelp\n"
+                "\e[0;94m[*] "
+                "\e[m-p\t\tPrint\n"
+                "\e[0;94m[*] "
+                "\e[mXXXX\tOffset\n-- -- -- -- --\n");
+        break;
     }
 
     if (exit)
@@ -128,12 +147,12 @@ char *get_filename(char *in)
     return new;
 }
 
-void writeNull(configure* conf)
+void writeNull(configure* conf, FILE* writeTo)
 {
     if (!conf->confSaveFile) {
-        fprintf(stdout, "\t\e[31mNULL\e[m,\n");
+        fprintf(writeTo, "\t\e[31mNULL\e[m,\n");
     } else {
-        fprintf(stdout, "\tNULL,\n");
+        fprintf(writeTo, "\tNULL,\n");
     }
 }
 
