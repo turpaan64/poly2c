@@ -148,41 +148,38 @@ int main(int argc, char **argv)
 
         for (int i = 0; (i * 4) < zobjFileSize - stored; i++)
         {
-            if (i == i) /* FIXME why */
+            memcpy(&bgData, zobj + stored + (i * 4), sizeof(z64_bgcheck_data_info_t));
+
+            uint32_t testLegit2[] = {
+                (SWAP_LE_BE(SWAP_V64_BE(bgData.vtx_table)) & 0xFFF00000),
+                (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_table)) & 0xFFF00000),
+                (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_info_table)) & 0xFFF00000),
+                (SWAP_LE_BE(SWAP_V64_BE(bgData.camera_data_table)) & 0xF0F00000),
+                (SWAP_LE_BE(SWAP_V64_BE(bgData.water_info_table)) & 0xF0F00000)
+            };
+
+            segmentTest = 0;
+            if (testLegit2[0] != 0)
             {
-                memcpy(&bgData, zobj + stored + (i * 4), sizeof(z64_bgcheck_data_info_t));
-
-                uint32_t testLegit2[] = {
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData.vtx_table)) & 0xFFF00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_table)) & 0xFFF00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_info_table)) & 0xFFF00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData.camera_data_table)) & 0xF0F00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData.water_info_table)) & 0xF0F00000)
-                };
-
-                segmentTest = 0;
-                if (testLegit2[0] != 0)
+                if (testLegit2[0] == testLegit2[1] && testLegit2[1] == testLegit2[2])
                 {
-                    if (testLegit2[0] == testLegit2[1] && testLegit2[1] == testLegit2[2])
-                    {
-                        testLegit2[0] = testLegit2[1] = testLegit2[2] = 0;
-                        segmentTest = 1;
-                    }
+                    testLegit2[0] = testLegit2[1] = testLegit2[2] = 0;
+                    segmentTest = 1;
                 }
+            }
 
-                if (segmentTest && bgData.pad == 0 && bgData.pad2 == 0 && testLegit2[0] == 0 && testLegit2[1] == 0 && testLegit2[2] == 0 && testLegit2[3] == 0 && testLegit2[4] == 0)
+            if (segmentTest && bgData.pad == 0 && bgData.pad2 == 0 && testLegit2[0] == 0 && testLegit2[1] == 0 && testLegit2[2] == 0 && testLegit2[3] == 0 && testLegit2[4] == 0)
+            {
+                if (!thisCnf.confFirst)
                 {
-                    if (!thisCnf.confFirst)
-                    {
-                        fprintf(stderr, "\e[0;94m[*] "
-                                        "\e[mFound at \e[0;91m0x%08X\e[m\n",
-                                stored + (i * 4));
-                        res += 1;
-                        offset += sizeof(z64_bgcheck_polygon_info_t);
-                    } else {
-                        offset = stored + (i * 4);
-                        break;
-                    }
+                    fprintf(stderr, "\e[0;94m[*] "
+                                    "\e[mFound at \e[0;91m0x%08X\e[m\n",
+                            stored + (i * 4));
+                    res += 1;
+                    offset += sizeof(z64_bgcheck_polygon_info_t);
+                } else {
+                    offset = stored + (i * 4);
+                    break;
                 }
             }
         }
