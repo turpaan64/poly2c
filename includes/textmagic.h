@@ -9,6 +9,8 @@
 
 void print_usage(int c, char *ref, configure *conf, int exit)
 {
+    if (!conf)
+        return;
     if (!conf->printUsageFlag){
         conf->printUsageFlag = 1;
         fprintf(stderr,
@@ -16,7 +18,7 @@ void print_usage(int c, char *ref, configure *conf, int exit)
                 "\e[0;94m[*] "
                 "\e[mWritten by: rankaisija <github.com/turpaan64>\n"
                 "\e[0;94m[*] "
-                "\e[mAdditional contributions by: CrookedPoe <nickjs.site>\n-- -- -- -- --\n");
+                "\e[mAdditional contributions by: CrookedPoe <nickjs.site> and z64me <z64.me>\n-- -- -- -- --\n");
     }
     switch (c)
     {
@@ -75,76 +77,39 @@ void print_usage(int c, char *ref, configure *conf, int exit)
                         "\e[mExiting...\n");
 }
 
-int check_extension(char *in, char *ext)
+int extension_matches(char *in, char *ext)
 {
-    int idx = 0; /* Index of `.` character. */
-    char *check; /* String to test against. */
-
-    /* Search backwards for the most recent occurence of `.` */
-    for (int i = strlen(in); i > 0; i--)
-    {
-        if (in[i] == '.')
-        {
-            idx = i;
-            break;
-        }
-    }
-
-    if (idx) /* If idx != 0, check extension. */
-    {
-        check = calloc(strlen(in) + 1, 1);
-        memcpy(check, (in + idx), idx);
-
-        if (!strcmp(ext, check)) /* If ext == check, return index of position. (true == non-zero) */
-            return (strlen(in) - idx);
-        else
-            return 0;
-    }
-    else
+    const char *ss;
+    
+    /* find last period in string (extension) */
+    if (!(ss = strrchr(in, '.')))
         return 0;
+    
+    /* return non-zero if extension as desired */
+    return !strcmp(ss, ext);
 }
 
 char *get_filename(char *in)
 {
-    int head = 0;
-    int tail = 0;
-    char *new;
+    char *ss;
+    char *result;
+    
+    /* find and skip last '/' or '\' if present */
+    if (!(ss = strrchr(in, '/')))
+        ss = strrchr(in, '\\');
+    if (ss)
+        ++ss;
+    else
+        ss = in;
+    
+    /* duplicate remainder of string */
+    result = strdup(ss);
+    
+    /* zero-terminate last period (extension) if present */
+    if ((ss = strrchr(result, '.')))
+        *ss = '\0';
 
-    //fprintf(stderr, "in = %s\n", in);
-    /* Search backwards for the most recent occurence of `.` */
-    for (int i = strlen(in); i > 0; i--)
-    {
-        if (in[i] == '.')
-        {
-            tail = i;
-            break;
-        }
-    }
-    //fprintf(stderr, "tail = %d\n", tail);
-
-    /* Search backwards for the most recent occurence of `/` or `\` */
-    for (int i = strlen(in); i > 0; i--)
-    {
-        if (in[i] == '/' || !strcmp(in + i, "\\"))
-        {
-            head = i + 1;
-            break;
-        }
-    }
-    //fprintf(stderr, "head = %d\n", head);
-
-    /* Allocate space for new string, and grab characters between head and tail. */
-    new = malloc(sizeof(char) * strlen(in));
-    for (int i = head; i < (strlen(in) - (strlen(in) - tail)); i++)
-    {
-        if (in[i] == '.')
-            new[i - head] = '_';
-        else
-            new[i - head] = in[i];
-        //fprintf(stderr, "new[%d] = %c\n", (i - head), in[i]);
-    }
-
-    return new;
+    return result;
 }
 
 void writeNull(configure* conf, FILE* writeTo)
