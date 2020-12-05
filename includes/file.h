@@ -10,12 +10,12 @@
 #include <unistd.h>
 #endif
 
-#define READ "r"
-#define WRITE "w"
-#define APPEND "a"
-#define READ_WRITE "r+"
-#define READ_WRITE_EMPTY "w+"
-#define READ_APPEND "a+"
+#define READ "rb"
+#define WRITE "wb"
+#define APPEND "ab"
+#define READ_WRITE "rb+"
+#define READ_WRITE_EMPTY "wb+"
+#define READ_APPEND "ab+"
 
 #define ENDIAN_BIG    0
 #define ENDIAN_LITTLE 1
@@ -32,21 +32,19 @@ static inline int getFileSize(FILE* f)
 static inline FILE* openFile(const char* in, const char* mode, int* fileSizeDest)
 {
     FILE* f;
-    if (access(in, F_OK) != -1)
-    {
-        f = fopen(in, mode);
-        *fileSizeDest = getFileSize(f);
-    }
-    else
+    if (!(f = fopen(in, mode)))
     {
         f = NULL;
         *fileSizeDest = 0;
-        fprintf(stderr, "There was a problem accessing the file.\n");
+        fprintf(stderr, "fopen('%s', '%s') failed\n", in, mode);
         //debug_printf("There was a problem accessing the file.\n", CSTR_ERROR);
+        return 0;
     }
+    *fileSizeDest = getFileSize(f);
     return f;
 }
 
+#if 0
 /* Kind of broken. Do not use. */
 static inline char** readAllLines(const char* path, int lineSize, int* fileSizeDest, int* totalLines)
 {
@@ -80,6 +78,7 @@ static inline char** readAllLines(const char* path, int lineSize, int* fileSizeD
 
     return result;
 }
+#endif
 
 /* Return `input` as an array of bytes and store its file size to an integer. */
 static inline unsigned char* makeFileBuffer(const char* path, int fileEndian, int* fileSizeDest)
@@ -87,6 +86,8 @@ static inline unsigned char* makeFileBuffer(const char* path, int fileEndian, in
     unsigned char *buf = 0; /* Initialize to 0 */
     int fileSize = 0;
     FILE* f = openFile(path, READ, &fileSize);
+    if (!f)
+        goto L_oof;
 
     if ((buf = (unsigned char*)malloc(fileSize)))
     {
@@ -105,14 +106,18 @@ static inline unsigned char* makeFileBuffer(const char* path, int fileEndian, in
                 }
             }
 
+            fclose(f);
             return buf;
         }
         else
         {
+L_oof:
             fprintf(stderr, "Failed to read file contents...\n");
             //debug_printf("Failed to read file contents...\n", CSTR_ERROR);
             free(buf);
             *fileSizeDest = 0;
+            if (f)
+                fclose(f);
             return NULL;
         }
     }
@@ -121,6 +126,7 @@ static inline unsigned char* makeFileBuffer(const char* path, int fileEndian, in
         fprintf(stderr, "Buffer is not allocated!\n");
         //debug_printf("Buffer is not allocated!\n", CSTR_ERROR);
         *fileSizeDest = 0;
+        fclose(f);
         return NULL;
     }
 }
