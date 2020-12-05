@@ -39,9 +39,9 @@ enum {
 
 int main(int argc, char **argv)
 {
-    configure *thisCnf = malloc(sizeof(configure));
-    thisCnf->confSaveFile = true;
-    thisCnf->confFirst = false;
+    configure thisCnf = {0};
+    thisCnf.confSaveFile = true;
+    thisCnf.confFirst = false;
     // TODO: copy the results to clipboard
     // TODO: name the xxxxVertexTable[] = {... based on input file
     //       by removing the word collision, if used + make the casing small
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     static char *filename = 0;
     static char *extension = ".zobj";
     static char *output_ext = ".h";
-    FILE* out;
+    FILE* out = 0;
 
     // ARGUMENTS
     int offset = 0;
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     {
         if (!strcmp(argv[i], "-f") || !strcmp(argv[i], "--first"))
         {
-            thisCnf->confFirst = 1;
+            thisCnf.confFirst = 1;
         }
         else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help"))
         {
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
                     "\e[0;94m[*] "
                     "\e[mWritten by: rankaisija <github.com/turpaan64>\n"
                     "\e[0;94m[*] "
-                    "\e[mAdditional contributions by: CrookedPoe <nickjs.site>\n");
+                    "\e[mAdditional contributions by: CrookedPoe <nickjs.site> and z64me <z64.me>\n");
             fprintf(stderr,
                     "--- ARGMNT --- \n"
                     "\e[0;94m[*] "
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--print")) 
         {
-            thisCnf->confSaveFile = false;
+            thisCnf.confSaveFile = false;
         }
         else if (i > 1)
         {
@@ -91,26 +91,27 @@ int main(int argc, char **argv)
 
     if (argc < 2)
     {
-        print_usage(notEnoughArguments, argv[0], thisCnf, Exit);
+        print_usage(notEnoughArguments, argv[0], &thisCnf, Exit);
         return 1;
     }
 
-    if (check_extension(argv[1], ".zobj"))
+    if (extension_matches(argv[1], ".zobj"))
     {
-        filename = calloc(strlen(argv[1]), 1);
         filename = get_filename(argv[1]);
         //fprintf(stderr, "%s\n", filename);
     }
     else {
-        print_usage(notZobj, argv[1], thisCnf, Exit);
+        print_usage(notZobj, argv[1], &thisCnf, Exit);
         return 1;
     }
 
     int zobjFileSize = 0;
     unsigned char *zobj = makeFileBuffer(argv[1], 0, &zobjFileSize);
-    if (offset > zobjFileSize - sizeof(z64_bgcheck_data_info_t))
+    if (!zobj)
+        return 1;
+    if (offset >= zobjFileSize - sizeof(z64_bgcheck_data_info_t))
     {
-        print_usage(notWithinFilesize, argv[1], thisCnf, Exit);
+        print_usage(notWithinFilesize, argv[1], &thisCnf, Exit);
         return 1;
     }
 
@@ -126,15 +127,15 @@ int main(int argc, char **argv)
         }
     }
 
-    z64_bgcheck_data_info_t bgData[1];
-    memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+    z64_bgcheck_data_info_t bgData;
+    memcpy(&bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
 
     uint32_t testLegit[] = {
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0xF0F00000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0xF0F00000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0xF0F00000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0xF0F00000),
-        (SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0xF0F00000)
+        (SWAP_LE_BE(SWAP_V64_BE(bgData.vtx_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_info_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData.camera_data_table)) & 0xF0F00000),
+        (SWAP_LE_BE(SWAP_V64_BE(bgData.water_info_table)) & 0xF0F00000)
     };
     
     if (testLegit[0] == 0 && testLegit[1] == 0 && testLegit[2] == 0 && testLegit[3] == 0 && testLegit[4] == 0) {
@@ -143,20 +144,20 @@ int main(int argc, char **argv)
         int res = 0;
         int segmentTest;
 
-        print_usage(notGoodOffset, argv[1], thisCnf, Cont);
+        print_usage(notGoodOffset, argv[1], &thisCnf, Cont);
 
         for (int i = 0; (i * 4) < zobjFileSize - stored; i++)
         {
-            if (i == i)
+            if (i == i) /* FIXME why */
             {
-                memcpy(bgData, zobj + stored + (i * 4), sizeof(z64_bgcheck_data_info_t));
+                memcpy(&bgData, zobj + stored + (i * 4), sizeof(z64_bgcheck_data_info_t));
 
                 uint32_t testLegit2[] = {
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData->vtx_table)) & 0xFFF00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_table)) & 0xFFF00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData->poly_info_table)) & 0xFFF00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData->camera_data_table)) & 0xF0F00000),
-                    (SWAP_LE_BE(SWAP_V64_BE(bgData->water_info_table)) & 0xF0F00000)
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData.vtx_table)) & 0xFFF00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_table)) & 0xFFF00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData.poly_info_table)) & 0xFFF00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData.camera_data_table)) & 0xF0F00000),
+                    (SWAP_LE_BE(SWAP_V64_BE(bgData.water_info_table)) & 0xF0F00000)
                 };
 
                 segmentTest = 0;
@@ -169,9 +170,9 @@ int main(int argc, char **argv)
                     }
                 }
 
-                if (segmentTest && bgData->pad == 0 && bgData->pad2 == 0 && testLegit2[0] == 0 && testLegit2[1] == 0 && testLegit2[2] == 0 && testLegit2[3] == 0 && testLegit2[4] == 0)
+                if (segmentTest && bgData.pad == 0 && bgData.pad2 == 0 && testLegit2[0] == 0 && testLegit2[1] == 0 && testLegit2[2] == 0 && testLegit2[3] == 0 && testLegit2[4] == 0)
                 {
-                    if (!thisCnf->confFirst)
+                    if (!thisCnf.confFirst)
                     {
                         fprintf(stderr, "\e[0;94m[*] "
                                         "\e[mFound at \e[0;91m0x%08X\e[m\n",
@@ -186,50 +187,60 @@ int main(int argc, char **argv)
             }
         }
 
-        if (!thisCnf->confFirst)
+        if (!thisCnf.confFirst)
         {
             if (res == 0) {
-                print_usage(6, argv[1], thisCnf, Exit);
+                print_usage(6, argv[1], &thisCnf, Exit);
                 return 1;
             } else {
 
                 fprintf(stderr, "\e[0;94m[*] "
                                     "\e[mFound %d collisions.\n",
                             res);
-                print_usage(200, argv[1], thisCnf, Exit); //Just Exit
+                print_usage(200, argv[1], &thisCnf, Exit); //Just Exit
                 return 1;
             }
         } else {
-            print_usage(7, argv[1], thisCnf, Cont);
-            memcpy(bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
+            print_usage(7, argv[1], &thisCnf, Cont);
+            memcpy(&bgData, zobj + offset, sizeof(z64_bgcheck_data_info_t));
         }
     }
 
  
-    if (thisCnf->confSaveFile) {
-        char** saveFile = strcat(filename, output_ext);
+    if (thisCnf.confSaveFile)
+    {
+        /* resize filename so extension can be appended */
+        filename = realloc(filename, strlen(filename) + strlen(output_ext) + 1);
+        char* saveFile = strcat(filename, output_ext);
         out = fopen(saveFile, "w");
 
         // return name
-        if (check_extension(filename, ".h"))
+        if (extension_matches(filename, ".h"))
         {
-            filename = calloc(strlen(argv[1]), 1);
+            free(filename);
             filename = get_filename(argv[1]);
             //fprintf(stderr, "%s\n", filename);
         }
         // Write to a file
-        mainProcess(thisCnf, bgData, out, zobj, filename, &offset, &zobjFileSize);
+        mainProcess(&thisCnf, &bgData, out, zobj, filename, &offset, &zobjFileSize);
     } else {
         // Print out
-        mainProcess(thisCnf, bgData, stdout, zobj, filename, &offset, &zobjFileSize);
+        mainProcess(&thisCnf, &bgData, stdout, zobj, filename, &offset, &zobjFileSize);
     }
+    
+    /* cleanup */
+    if (filename)
+        free(filename);
+    if (zobj)
+        free(zobj);
 
 
     
 
-    if (thisCnf->confSaveFile) {
-        fclose(out);
-        print_usage(notFailed, argv[1], thisCnf, Exit);
+    if (thisCnf.confSaveFile) {
+        if (out)
+            fclose(out);
+        print_usage(notFailed, argv[1], &thisCnf, Exit);
     }
 
     return 0;
